@@ -14,6 +14,7 @@
     #score    { color: red; font-weight: bold; vertical-align: middle; }
     #rows     { color: blue; font-weight: bold; vertical-align: middle; }
     #stats    { position: absolute; bottom: 0em; right: 1em; }
+  
     @media screen and (min-width:   0px) and (min-height:   0px)  { #tetris { font-size: 0.75em; width: 250px; } #menu { width: 100px; height: 200px; } #upcoming { width:  50px; height:  50px; } #canvas { width: 100px; height: 200px; } } /* 10px chunks */
     @media screen and (min-width: 400px) and (min-height: 400px)  { #tetris { font-size: 1.00em; width: 350px; } #menu { width: 150px; height: 300px; } #upcoming { width:  75px; height:  75px; } #canvas { width: 150px; height: 300px; } } /* 15px chunks */
     @media screen and (min-width: 500px) and (min-height: 500px)  { #tetris { font-size: 1.25em; width: 450px; } #menu { width: 200px; height: 400px; } #upcoming { width: 100px; height: 100px; } #canvas { width: 200px; height: 400px; } } /* 20px chunks */
@@ -27,11 +28,17 @@
 <body>
 
   <div id="tetris">
+    <div id="countdownOverlay">Next game in: <span id="countdown">5</span> seconds</div> <!-- Countdown overlay -->
     <div id="menu">
-      <p id="start"><a href="javascript:play();">Press Space to Play.</a></p>
+      <!-- <p id="start"><a href="javascript:play();">Press Space to Play.</a></p> -->
       <p><canvas id="upcoming"></canvas></p>
       <p>score <span id="score">00000</span></p>
       <p>rows <span id="rows">0</span></p>
+      <p>time remaining: <span id="time">360</span> seconds</p> <!-- Display remaining time -->
+      <p>total games played: <span id="totalGames">0</span></p> <!-- Display total games played -->
+      <p>speed: <span id="speed">00</span></p> 
+      <!-- <p>rows_atm: <span id="rowsCleared">00</span></p>  -->
+      <p>pieces: <span id="piecesCount">00</span></p> 
     </div>
     <canvas id="canvas">
       Sorry, this example cannot be run because your browser does not support the &lt;canvas&gt; element
@@ -49,6 +56,12 @@
     function hide(id)       { get(id).style.visibility = 'hidden'; }
     function show(id)       { get(id).style.visibility = null;     }
     function html(id, html) { get(id).innerHTML = html;            }
+
+    let startTime; // Variable to store the start time of the game
+    let gameDuration = 6 * 60 * 1000; // 6 minutes in milliseconds
+    let timeLimitReached = false; // Flag to track if the time limit has been reached
+    let totalGamesPlayed = 0; // Counter for total games played
+    let gameRecords = []; // Array to store records of each game
 
     function timestamp()           { return new Date().getTime();                             }
     function random(min, max)      { return (min + (Math.random() * (max - min)));            }
@@ -75,13 +88,18 @@
         ctx     = canvas.getContext('2d'),
         ucanvas = get('upcoming'),
         uctx    = ucanvas.getContext('2d'),
-        speed   = { start: .16, decrement: .03, min: .01 }, // how long before piece drops by 1 row (seconds)
+        speed   = { start: .5, decrement: 0, slowest: .8, fastest: .2, increase: .03, decrease: .03 }, // how long before piece drops by 1 row (seconds)
         nx      = 10, // width of tetris court (in blocks)
         ny      = 20, // height of tetris court (in blocks)
-        nu      = 5;  // width/height of upcoming preview (in blocks)
+        nu      = 5,  // width/height of upcoming preview (in blocks)
+        threshold = { hi: 20 - 10, lo: 20 - 4 },
+        adapt_freq = 3, // frequency of speed adaptation
+        reached_threshold_hi = false,
+        adapted_speed = false;
+
 
     //-------------------------------------------------------------------------
-    // game variables (initialized during reset)
+    // game variables (initialized during reset) 
     //-------------------------------------------------------------------------
 
     var dx, dy,        // pixel size of a single tetris block
@@ -94,7 +112,9 @@
         score,         // the current score
         vscore,        // the currently displayed score (it catches up to score in small chunks - like a spinning slot machine)
         rows,          // number of completed rows in the current game
-        step;          // how long before current piece drops by 1 row
+        step = speed.start,   // how long before current piece drops by 1 row
+        piecesCount = 0,
+        highest_row = 0;        
 
     //-------------------------------------------------------------------------
     // tetris pieces
@@ -152,7 +172,7 @@
     function unoccupied(type, x, y, dir) {
       return !occupied(type, x, y, dir);
     }
-
+    
     //-----------------------------------------
     // start with 4 instances of each piece and
     // pick randomly until the 'bag is empty'
@@ -182,13 +202,14 @@
         draw();
         stats.update();
         last = now;
-        requestAnimationFrame(frame, canvas);
+        if (!timeLimitReached) {
+          requestAnimationFrame(frame, canvas); // Call next frame only if time limit is not reached
+          }
       }
 
       resize(); // setup all our sizing information
       reset();  // reset the per-game variables
       frame();  // start the first frame
-
     }
 
     function showStats() {
@@ -223,10 +244,10 @@
           case KEY.ESC:    lose();                  handled = true; break;
         }
       }
-      else if (ev.keyCode == KEY.SPACE) {
-        play();
-        handled = true;
-      }
+      // else if (ev.keyCode == KEY.SPACE) {
+      //   play();
+      //   handled = true;
+      // }
       if (handled)
         ev.preventDefault(); // prevent arrow keys from scrolling the page (supported in IE9+ and all other browsers)
     }
@@ -235,15 +256,83 @@
     // GAME LOGIC
     //-------------------------------------------------------------------------
 
-    function play() { hide('start'); reset();          playing = true;  }
-    function lose() { show('start'); setVisualScore(); playing = false; }
+    function play() { 
+      // hide('start'); 
+      reset();          
+      playing = true;
 
+      // Record the start time only once at the beginning
+      if (!startTime) {
+        startTime = timestamp();
+      }
+      
+      // Increment and display the total games played
+      totalGamesPlayed++;
+      html('totalGames', totalGamesPlayed);
+    }
+    
+    function lose() {
+      // show('start');
+      setVisualScore();
+      playing = false;
+      show('countdownOverlay'); // Show countdown overlay
+
+      const finalMetrics = {
+        score: score,
+        finalSpeed: step,
+        rows: rows
+      };
+      gameRecords.push(finalMetrics); // Add the current game's metrics to the array
+      
+      start_Countdown()
+    }
+    
+    function start_Countdown() {
+      // Countdown before restarting the game
+      let countdown = 5; // Start the countdown from 5 seconds
+      const countdownElement = get('countdown');
+      countdownElement.innerHTML = countdown; // Update the countdown display
+
+      // Update the countdown every second
+      const countdownInterval = setInterval(() => {
+        countdown--;
+        countdownElement.innerHTML = countdown; // Update countdown display
+        if (countdown <= 0) {
+          clearInterval(countdownInterval); // Stop the countdown loop
+          hide('countdownOverlay'); // Hide countdown overlay
+          play(); // Start a new game
+        }
+      }, 1000); // Update every 1000 milliseconds (1 second)
+    }
+
+
+
+    function downloadMetrics() {
+      const metricDetails = gameRecords.map((record, index) => {
+        return `Game ${index + 1}:\nScore: ${record.score}\nFinal Speed: ${record.finalSpeed}\nCompleted Rows: ${record.rows}\n`;
+      }).join('\n');
+      
+      const data = `Game Over Metrics:\nTotal Games Played: ${totalGamesPlayed}\n\n${metricDetails}`;
+      const blob = new Blob([data], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'game_metrics.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+      
     function setVisualScore(n)      { vscore = n || score; invalidateScore(); }
     function setScore(n)            { score = n; setVisualScore(n);  }
     function addScore(n)            { score = score + n;   }
     function clearScore()           { setScore(0); }
-    function clearRows()            { setRows(0); }
-    function setRows(n)             { rows = n; step = Math.max(speed.min, speed.start - (speed.decrement*rows)); invalidateRows(); }
+    function clearRows()            { rows = 0 }
+    function setRows(n)             { rows = n; invalidateRows(); }
+//    function clearRows()            { setRows(0); }
+
+//    function setRows(n)             { rows = n; step = Math.max(speed.min, speed.start - (speed.decrement*rows)); invalidateRows(); }
     function addRows(n)             { setRows(rows + n); }
     function getBlock(x,y)          { return (blocks && blocks[x] ? blocks[x][y] : null); }
     function setBlock(x,y,type)     { blocks[x] = blocks[x] || []; blocks[x][y] = type; invalidate(); }
@@ -260,9 +349,21 @@
       clearScore();
       setCurrentPiece(next);
       setNextPiece();
+      step = speed.start;
+      speed_adaptable = true;
+      piecesCount = 0;
     }
 
     function update(idt) {
+      checkTimeLimit(); // Check the time limit on each update
+      if (timeLimitReached) {
+        return; // If the time limit has been reached, skip further updates
+      }
+  
+      // Update UI with remaining time
+      const timeRemaining = Math.max(0, Math.ceil((gameDuration - (timestamp() - startTime)) / 1000));
+      html('time', timeRemaining);
+  
       if (playing) {
         if (vscore < score)
           setVisualScore(vscore + 1);
@@ -272,6 +373,15 @@
           dt = dt - step;
           drop();
         }
+      }
+    }
+    
+    function checkTimeLimit() {
+      const elapsed = timestamp() - startTime; // Calculate elapsed time
+      if (elapsed >= gameDuration) {
+        timeLimitReached = true; // Set the flag when the time limit is reached
+        lose(); // Trigger lose function
+        downloadMetrics(); // Download metrics only once when the time limit is reached
       }
     }
 
@@ -321,6 +431,12 @@
         if (occupied(current.type, current.x, current.y, current.dir)) {
           lose();
         }
+        
+        highest_row = getHighestBlockRow();
+        piecesCount++; // Increase pieces count
+        if (piecesCount % adapt_freq === 0) { // Check every couple pieces
+          adaptSpeed(); // Adapt speed based on rows cleared
+        }
       }
     }
 
@@ -348,6 +464,7 @@
         addRows(n);
         addScore(100*Math.pow(2,n-1)); // 1: 100, 2: 200, 3: 400, 4: 800
       }
+      return n
     }
 
     function removeLine(n) {
@@ -357,6 +474,55 @@
           setBlock(x, y, (y == 0) ? null : getBlock(x, y-1));
       }
     }
+    
+    //-------------------------------------------------------------------------
+    // Adapt speed based on row height
+    //-------------------------------------------------------------------------
+
+    function find_lowest_occupied(arr) {
+      occupied_rows = arr // get indices of occupied rows
+        .map((value, index) => value ? index : -1) // Create an array of indices, -1 for falsy values
+        .filter(index => index !== -1); // filter out -1s
+      return Math.min(...occupied_rows); // find the lowest row number (i.e., highest row)
+    }
+
+    function getHighestBlockRow() {
+      return blocks.map(find_lowest_occupied);
+    }
+
+    function adaptSpeed() {
+      // Update game speed based on the height of the blocks
+      const highest_blocks = getHighestBlockRow();
+
+      if (highest_blocks.filter(value => value < threshold.hi).length >= 3) { // if at least three blocks are above the upper threshold
+        if (!reached_threshold_hi) { // if the high threshold has been reached before
+          step = Math.min(speed.slowest, step + .1); // decrease speed once
+          reached_threshold_hi = true;
+        } else {
+          return
+        }
+      } else if (highest_blocks.filter(value => value < threshold.lo).length >= 3) { // if at least  three blocks are above lower threshold
+        if (reached_threshold_hi) { // if the high threshold has been reached before
+          return // do nothing
+        } else {
+          step = Math.max(speed.fastest, step - .05); // increase speed
+          reached_threshold_lo = true;
+        } 
+      } else { // if below the lower threshold
+        if (adapted_speed) { // if the speed has been adapted before
+          return
+        } else if (reached_threshold_hi) { // if the higher threshold has been reached before
+          step = Math.max(speed.fastest, step - .1);
+          adapted_speed = true
+        } else { // in the beginning of the game
+          step = Math.max(speed.fastest, step - .1);
+        }
+      }
+
+      // Update the displayed current speed each time a piece drops
+      html('speed', (step.toFixed(2))); 
+    }
+
 
     //-------------------------------------------------------------------------
     // RENDERING
@@ -442,6 +608,7 @@
     //-------------------------------------------------------------------------
 
     run();
+    start_Countdown(); // start countdown to first game
 
   </script>
 
