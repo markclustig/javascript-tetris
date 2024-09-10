@@ -284,7 +284,9 @@
       };
       gameRecords.push(finalMetrics); // Add the current game's metrics to the array
       
-      start_Countdown()
+      if (!timeLimitReached) {
+        start_Countdown()
+      }
     }
     
     function start_Countdown() {
