@@ -114,7 +114,8 @@
         vscore,        // the currently displayed score (it catches up to score in small chunks - like a spinning slot machine)
         rows,          // number of completed rows in the current game
         step = speed.start,   // how long before current piece drops by 1 row
-        piecesCount,
+        piecesCount, // count pieces to manage speed adaptation
+        piecesCountHold, // hold piecesCount values after adapt_freq is reset, see adaptSpeed(); solely for exporting purposes
         adapt_freq, // current frequency of speed adaptation
         reached_threshold_hi,
         reached_threshold_lo;
@@ -283,7 +284,8 @@
       const finalMetrics = {
         score: score,
         finalSpeed: step,
-        rows: rows
+        rows: rows,
+        pieces: piecesCount + piecesCountHold
       };
       gameRecords.push(finalMetrics); // Add the current game's metrics to the array
       
@@ -306,23 +308,27 @@
           clearInterval(countdownInterval); // Stop the countdown loop
           hide('countdownOverlay'); // Hide countdown overlay
           play(); // Start a new game
-        }
+        } 
       }, 1000); // Update every 1000 milliseconds (1 second)
     }
 
 
 
     function downloadMetrics() {
-      const metricDetails = gameRecords.map((record, index) => {
-        return `Game ${index + 1}:\nScore: ${record.score}\nFinal Speed: ${record.finalSpeed}\nCompleted Rows: ${record.rows}\n`;
+      const header = `game, score, speed, rows, pieces`;
+
+      const data_body = gameRecords.map((record, index) => {
+        return `${index + 1}, ${record.score}, ${record.finalSpeed}, ${record.rows}, ${record.pieces}`;
       }).join('\n');
       
-      const data = `Game Over Metrics:\nTotal Games Played: ${totalGamesPlayed}\n\n${metricDetails}`;
+      const data = [header, data_body].join('\n');
+
       const blob = new Blob([data], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
+      const endtime = new Date().toISOString().replace(/.[0-9]*Z/, '').replace(/:/g, '');
       a.href = url;
-      a.download = 'game_metrics.txt';
+      a.download = `tetris_metrics_${endtime}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -347,6 +353,7 @@
     function resetSpeedPars() { 
       step = speed.start;
       piecesCount = 0;
+      piecesCountHold = 0;
       reached_threshold_hi = false;
       reached_threshold_lo = false;
       adapt_freq = adapt_freq_vals.start;
@@ -389,7 +396,9 @@
       const elapsed = timestamp() - startTime; // Calculate elapsed time
       if (elapsed >= gameDuration) {
         timeLimitReached = true; // Set the flag when the time limit is reached
-        lose(); // Trigger lose function
+        if (playing) {
+          lose(); // Trigger lose function
+        }
         downloadMetrics(); // Download metrics only once when the time limit is reached
       }
     }
@@ -441,9 +450,9 @@
           lose();
         }
         
-        piecesCount++; // Increase pieces count
+        piecesCount++;
         if (piecesCount % adapt_freq === 0) { // Check every couple pieces
-          adaptSpeed(); // Adapt speed based on rows cleared
+          adaptSpeed();
         }
       }
     }
@@ -535,6 +544,7 @@
         if (reached_threshold_hi) { // if the high threshold has been reached before
           return // do nothing
         } else {
+          piecesCountHold += piecesCount;
           piecesCount = 0; // reset piecesCount (to work with frequency adaptation)
           adapt_freq = adapt_freq_vals.maint; // lower frequency of speed adaptation to maintenance level
           step = Math.max(speed.fastest_mid, step - speed.change_start); // increase speed
