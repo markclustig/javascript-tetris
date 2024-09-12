@@ -81,8 +81,8 @@
     // game constants
     //-------------------------------------------------------------------------
 
-    var // KEY     = { SPACE: 32, LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40 }, // balance, overload
-        KEY     = { LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40 }, // boredom
+    var // KEY     = { LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40 }, // balance, overload
+        KEY     = { LEFT: 37, UP: 38, RIGHT: 39 }, // boredom
         DIR     = { UP: 0, RIGHT: 1, DOWN: 2, LEFT: 3, MIN: 0, MAX: 3 },
         stats   = new Stats(),
         canvas  = get('canvas'),
@@ -90,16 +90,16 @@
         ucanvas = get('upcoming'),
         uctx    = ucanvas.getContext('2d'),
         // speed   = { start: .5, slowest: .8, fastest: .2, change_start: .1, change_maint: .05 }, // [balance] how long before piece drops by 1 row (seconds)
-        speed   = { start: .5, slowest: .8, fastest: .2, change_start: .1, change_maint: .05 }, // boredom
+        speed   = { start: .4, slowest: .5, fastest: .4, change_start: .1, change_maint: .1 }, // boredom
         // speed   = { start: .5, slowest: .4, fastest_hi: .2, fastest_mid: .15, fastest_lo: .1, change_start: .1, change_maint: .05 }, // overload
         nx      = 10, // width of tetris court (in blocks)
         ny      = 20, // height of tetris court (in blocks)
         nu      = 5,  // width/height of upcoming preview (in blocks)
         // threshold = { hi: 20 - 10, lo: 20 - 4 }, // [balance] in game, rows are coded 0–19 from highest to lowest, that's why.
-        threshold = { hi: 2, lo: 0}, // boredom
+        threshold = { hi: 20 - 2, lo: 20 - 0}, // boredom
         // threshold = { hi: 20 - 13, lo: 20 - 8 }, // overload
         // adapt_freq_vals = { start: 3, maint: 3}; // [balance] frequency of speed adaptation at the start and at maintenance level
-        adapt_freq_vals = { start: 0, maint: 0}; // boredom
+        adapt_freq_vals = { start: 1, maint: 0}; // boredom
         // adapt_freq_vals = { start: 2, maint: 3}; // overload
 
 
