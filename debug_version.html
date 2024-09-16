@@ -33,10 +33,10 @@
       <p><canvas id="upcoming"></canvas></p>
       <p>score <span id="score">00000</span></p>
       <p>rows <span id="rows">0</span></p>
-      <!-- <p>time remaining: <span id="time">360</span> seconds</p> Display remaining time -->
-      <!-- <p>total games played: <span id="totalGames">0</span></p> Display total games played -->
-      <!-- <p>speed: <span id="speed">00</span></p>  -->
-      <!-- <p>pieces: <span id="piecesCount">00</span></p>  -->
+      <p>time remaining: <span id="time">360</span> seconds</p> <!-- Display remaining time -->
+      <p>total games played: <span id="totalGames">0</span></p> <!-- Display total games played -->
+      <p>speed: <span id="speed">00</span></p> 
+      <p>pieces: <span id="piecesCount">00</span></p> 
     </div>
     <canvas id="canvas">
       Sorry, this example cannot be run because your browser does not support the &lt;canvas&gt; element
@@ -58,7 +58,7 @@
     let startTime; // Variable to store the start time of the game
     let gameDuration = 6 * 60 * 1000; // 6 minutes in milliseconds
     let timeLimitReached = false; // Flag to track if the time limit has been reached
-    // let totalGamesPlayed = 0; // Counter for total games played
+    let totalGamesPlayed = 0; // Counter for total games played
     let gameRecords = []; // Array to store records of each game
 
     function timestamp()           { return new Date().getTime();                             }
@@ -273,8 +273,8 @@
       }
       
       // Increment and display the total games played
-      // totalGamesPlayed++;
-      // html('totalGames', totalGamesPlayed);
+      totalGamesPlayed++;
+      html('totalGames', totalGamesPlayed);
     }
     
     function lose() {
@@ -379,8 +379,8 @@
       }
   
       // Update UI with remaining time
-      // const timeRemaining = Math.max(0, Math.ceil((gameDuration - (timestamp() - startTime)) / 1000));
-      // html('time', timeRemaining);
+      const timeRemaining = Math.max(0, Math.ceil((gameDuration - (timestamp() - startTime)) / 1000));
+      html('time', timeRemaining);
   
       if (playing) {
         if (vscore < score)
@@ -509,14 +509,41 @@
       return blocks.map(find_lowest_occupied);
     }
 
-    function adaptSpeed() { // balance, boredom condition
+    // function adaptSpeed() { // balance condition
+    //   // Update game speed based on the height of the blocks
+    //   const highest_blocks = getHighestBlockRow();
+    // 
+    //   if (highest_blocks.filter(value => value < threshold.hi).length >= 3) { // if at least three blocks are above the upper threshold
+    //     step = Math.min(speed.slowest, step + speed.change_maint); // decrease speed
+    //     reached_threshold_hi = true;
+    //   } else if (highest_blocks.filter(value => value < threshold.lo).length >= 3) { // if at least  three blocks are above lower threshold
+    //     if (reached_threshold_hi) { 
+    //       return 
+    //     } else {
+    //       step = Math.max(speed.fastest, step - speed.change_maint); // increase speed
+    //       reached_threshold_lo = true;
+    //     } 
+    //   } else { // if below the lower threshold
+    //     if (reached_threshold_lo) { // if the higher threshold has been reached before
+    //       step = Math.max(speed.fastest, step - speed.change_maint);
+    //     } else { // in the beginning of the game
+    //       step = Math.max(speed.fastest, step - speed.change_start);
+    //     }
+    //   }
+    // 
+    //   // Update the displayed current speed each time a piece drops
+    //   html('speed', (step.toFixed(2))); 
+    // }
+
+    function adaptSpeed() { // boredom condition
       // Update game speed based on the height of the blocks
       const highest_blocks = getHighestBlockRow();
-    
+
       if (highest_blocks.filter(value => value < threshold.hi).length >= 3) { // if at least three blocks are above the upper threshold
         step = Math.min(speed.slowest, step + speed.change_maint); // decrease speed
         reached_threshold_hi = true;
-      } else if (highest_blocks.filter(value => value < threshold.lo).length >= 3) { // if at least  three blocks are above lower threshold
+        adapt_freq = adapt_freq_vals.maint; // lower frequency of speed adaptation to maintenance level
+      } else if (highest_blocks.filter(value => value < threshold.lo).length >= 3) { // if at least three blocks are above lower threshold
         if (reached_threshold_hi) { 
           return 
         } else {
@@ -530,11 +557,10 @@
           step = Math.max(speed.fastest, step - speed.change_start);
         }
       }
-    
-      // Update the displayed current speed each time a piece drops
-      // html('speed', (step.toFixed(2))); 
-    }
 
+      // Update the displayed current speed each time a piece drops
+      html('speed', (step.toFixed(2))); 
+    }
 
     // function adaptSpeed() { // overload condition
     //   // Update game speed based on the height of the blocks
@@ -562,7 +588,7 @@
     //   }
     // 
     //   // Update the displayed current speed each time a piece drops
-    //   // html('speed', (step.toFixed(2))); 
+    //   html('speed', (step.toFixed(2))); 
     // }
 
 
