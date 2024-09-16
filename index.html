@@ -30,14 +30,12 @@
   <div id="tetris">
     <div id="countdownOverlay">Next game in: <span id="countdown">5</span> seconds</div> <!-- Countdown overlay -->
     <div id="menu">
-      <!-- <p id="start"><a href="javascript:play();">Press Space to Play.</a></p> -->
       <p><canvas id="upcoming"></canvas></p>
       <p>score <span id="score">00000</span></p>
       <p>rows <span id="rows">0</span></p>
       <p>time remaining: <span id="time">360</span> seconds</p> <!-- Display remaining time -->
       <p>total games played: <span id="totalGames">0</span></p> <!-- Display total games played -->
       <p>speed: <span id="speed">00</span></p> 
-      <!-- <p>rows_atm: <span id="rowsCleared">00</span></p>  -->
       <p>pieces: <span id="piecesCount">00</span></p> 
     </div>
     <canvas id="canvas">
@@ -397,11 +395,11 @@
     }
     
     function checkTimeLimit() {
-      const elapsed = timestamp() - startTime; // Calculate elapsed time
+      const elapsed = timestamp() - startTime;
       if (elapsed >= gameDuration) {
-        timeLimitReached = true; // Set the flag when the time limit is reached
+        timeLimitReached = true;
         if (playing) {
-          lose(); // Trigger lose function
+          lose(); 
         }
         downloadMetrics(); // Download metrics only once when the time limit is reached
       }
@@ -544,7 +542,8 @@
       if (highest_blocks.filter(value => value < threshold.hi).length >= 3) { // if at least three blocks are above the upper threshold
         step = Math.min(speed.slowest, step + speed.change_maint); // decrease speed
         reached_threshold_hi = true;
-      } else if (highest_blocks.filter(value => value < threshold.lo).length >= 3) { // if at least  three blocks are above lower threshold
+        adapt_freq = adapt_freq_vals.maint; // lower frequency of speed adaptation to maintenance level
+      } else if (highest_blocks.filter(value => value < threshold.lo).length >= 3) { // if at least three blocks are above lower threshold
         if (reached_threshold_hi) { 
           return 
         } else {
@@ -581,7 +580,7 @@
     //       reached_threshold_lo = true;
     //     } 
     //   } else { // if below the lower threshold
-    //     if (reached_threshold_lo) { // if the higher threshold has been reached before
+    //     if (reached_threshold_lo) { 
     //       step = Math.max(speed.fastest_lo, step - speed.change_maint);
     //     } else { // in the beginning of the game
     //       step = Math.max(speed.fastest_lo, step - speed.change_start);
